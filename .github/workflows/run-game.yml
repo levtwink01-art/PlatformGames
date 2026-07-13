@@ -1,4 +1,4 @@
-name: Запуск игры через VNC в браузере
+name: Запуск игры через VNC + xTunnel
 
 on:
   workflow_dispatch:
@@ -17,12 +17,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Установить Xvfb, TigerVNC и noVNC
+      - name: Установить Xvfb, TigerVNC, noVNC и xTunnel
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb tigervnc-standalone-server tigervnc-common git
+          sudo apt-get install -y xvfb tigervnc-standalone-server tigervnc-common git wget unzip
           git clone https://github.com/novnc/noVNC.git /tmp/noVNC
           git clone https://github.com/novnc/websockify.git /tmp/websockify
+          wget -q -O /tmp/xtunnel.zip https://github.com/xtunnel/xtunnel/releases/latest/download/xtunnel-linux-amd64.zip
+          unzip -o /tmp/xtunnel.zip -d /usr/local/bin
 
       - name: Настроить пароль для VNC
         run: |
@@ -30,37 +32,26 @@ jobs:
           echo "password" | vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
 
-      - name: Убить старые Xvfb и Xvnc
+      - name: Очистить блокировки и запустить Xvfb + Xvnc
         run: |
           sudo pkill -f Xvfb || true
           sudo pkill -f Xvnc || true
           sudo rm -f /tmp/.X99-lock
           sudo rm -rf /tmp/.X11-unix/X99
-          echo "Старые процессы и блокировки очищены"
 
-      - name: Запустить виртуальный дисплей и VNC-сервер
-        run: |
-          # === ОЧИСТКА БЛОКИРОВКИ ===
-          sudo rm -f /tmp/.X99-lock
-          sudo rm -rf /tmp/.X11-unix/X99
-          echo "Блокировка дисплея :99 очищена"
-
-          # Запускаем Xvfb (виртуальный дисплей)
           Xvfb :99 -ac -screen 0 1024x768x24 &
-          sleep 2
-          
-          # Запускаем VNC-сервер на порту 5900
+          sleep 3
+
           Xvnc :99 -rfbauth ~/.vnc/passwd -localhost -SecurityTypes VncAuth &
-          sleep 2
-          
+          sleep 3
+
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
-      - name: Запустить websockify (проброс VNC в WebSocket)
+      - name: Запустить websockify (превращает VNC в WebSocket)
         run: |
           cd /tmp/websockify
           python3 websockify.py --web /tmp/noVNC 8080 localhost:5900 &
-          sleep 2
-          echo "VNC доступен по ws://localhost:8080/vnc"
+          sleep 3
 
       - name: Запустить игру
         run: |
@@ -68,10 +59,15 @@ jobs:
           java -cp GameWindow.jar Game &
           sleep 10
 
-      - name: Показать логи и держать процесс
+      - name: Запустить xTunnel и показать ссылку
         run: |
-          echo "✅ Всё запущено!"
-          echo "🔗 Подключись через noVNC: http://localhost:8080/vnc.html"
-          echo "⚠️ Страница работает только локально! Используй ngrok для публичного доступа."
-          echo "⏳ Нажми Ctrl+C для остановки"
-          wait
+          xtunnel http 8080 > /tmp/xtunnel.log 2>&1 &
+          sleep 5
+          echo "🔥 ПУБЛИЧНАЯ ССЫЛКА НА VNC:"
+          cat /tmp/xtunnel.log | grep -o 'https://[a-z0-9-]*\.tunnel4\.com'
+          echo ""
+          echo "🔗 Открой в браузере: ССЫЛКА/vnc.html"
+          echo "🔑 Пароль VNC: password"
+
+      - name: Держать процесс
+        run: wait
