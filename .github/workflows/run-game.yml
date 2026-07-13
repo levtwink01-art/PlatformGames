@@ -1,7 +1,7 @@
 name: Запуск игры через VNC в браузере
 
 on:
-  workflow_dispatch:  # Ручной запуск
+  workflow_dispatch:
 
 jobs:
   run-game:
@@ -32,6 +32,11 @@ jobs:
 
       - name: Запустить виртуальный дисплей и VNC-сервер
         run: |
+          # === ОЧИСТКА БЛОКИРОВКИ ===
+          sudo rm -f /tmp/.X99-lock
+          sudo rm -rf /tmp/.X11-unix/X99
+          echo "Блокировка дисплея :99 очищена"
+
           # Запускаем Xvfb (виртуальный дисплей)
           Xvfb :99 -ac -screen 0 1024x768x24 &
           sleep 2
