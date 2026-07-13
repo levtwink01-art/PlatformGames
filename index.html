@@ -1,25 +1,20 @@
+<!-- index.html на GitHub Pages -->
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <!-- Подключаем движок CheerpJ -->
-    <script src="https://cdn.jsdelivr.net/gh/leaningtech/cheerpj-meta@3.0/cj3loader.js"></script>
+    <meta charset="UTF-8">
+    <title>Моя игра через VNC</title>
 </head>
 <body>
-    <!-- Ссылка, при нажатии на которую запускается твой .jar -->
-    <a href="#" onclick="runGame();">Запустить игру</a>
-    
+    <div id="vnc-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@novnc/novnc/core/websock.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@novnc/novnc/core/rfb.js"></script>
     <script>
-    async function runGame() {
-        // 1. Инициализируем CheerpJ
-        await cheerpjInit();
-        
-        // 2. Загружаем и запускаем твой JAR-файл с GitHub Pages
-        // ВАЖНО: путь должен начинаться с /app/, за которым идёт имя файла
-        await cheerpjRunMain("Game", "/app/GameWindow.jar");
-    }
+        // Подключение к WebSocket-прокси, который запущен в GitHub Actions
+        const rfb = new RFB(document.getElementById('vnc-container'), 
+                           'ws://localhost:8080/vnc', 
+                           { credentials: { password: 'password' } });
+        rfb.connect();
     </script>
-</body>
-</html>
-    </div>
 </body>
 </html>
