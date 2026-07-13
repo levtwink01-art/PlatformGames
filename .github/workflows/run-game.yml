@@ -1,9 +1,7 @@
-name: Запуск игры
+name: Запуск игры через VNC в браузере
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'   # Каждые 6 часов
-  workflow_dispatch:          # Ручной запуск через кнопку
+  workflow_dispatch:  # Ручной запуск
 
 jobs:
   run-game:
@@ -19,8 +17,48 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Установить Xvfb, TigerVNC и noVNC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb tigervnc-standalone-server tigervnc-common git
+          git clone https://github.com/novnc/noVNC.git /tmp/noVNC
+          git clone https://github.com/novnc/websockify.git /tmp/websockify
+
+      - name: Настроить пароль для VNC
+        run: |
+          mkdir -p ~/.vnc
+          echo "password" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+
+      - name: Запустить виртуальный дисплей и VNC-сервер
+        run: |
+          # Запускаем Xvfb (виртуальный дисплей)
+          Xvfb :99 -ac -screen 0 1024x768x24 &
+          sleep 2
+          
+          # Запускаем VNC-сервер на порту 5900
+          Xvnc :99 -rfbauth ~/.vnc/passwd -localhost -SecurityTypes VncAuth &
+          sleep 2
+          
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Запустить websockify (проброс VNC в WebSocket)
+        run: |
+          cd /tmp/websockify
+          python3 websockify.py --web /tmp/noVNC 8080 localhost:5900 &
+          sleep 2
+          echo "VNC доступен по ws://localhost:8080/vnc"
+
       - name: Запустить игру
         run: |
-          echo "🎮 Игра запущена $(date)"
-          java -jar GameWindow.jar
-        timeout-minutes: 360   # Остановить через 6 часов
+          export NO_AT_BRIDGE=1
+          java -cp GameWindow.jar Game &
+          sleep 10
+
+      - name: Показать логи и держать процесс
+        run: |
+          echo "✅ Всё запущено!"
+          echo "🔗 Подключись через noVNC: http://localhost:8080/vnc.html"
+          echo "⚠️ Страница работает только локально! Используй ngrok для публичного доступа."
+          echo "⏳ Нажми Ctrl+C для остановки"
+          wait
