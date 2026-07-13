@@ -30,6 +30,14 @@ jobs:
           echo "password" | vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
 
+      - name: Убить старые Xvfb и Xvnc
+        run: |
+          sudo pkill -f Xvfb || true
+          sudo pkill -f Xvnc || true
+          sudo rm -f /tmp/.X99-lock
+          sudo rm -rf /tmp/.X11-unix/X99
+          echo "Старые процессы и блокировки очищены"
+
       - name: Запустить виртуальный дисплей и VNC-сервер
         run: |
           # === ОЧИСТКА БЛОКИРОВКИ ===
